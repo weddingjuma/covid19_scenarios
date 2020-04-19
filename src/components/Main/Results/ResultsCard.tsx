@@ -25,6 +25,7 @@ const SHOW_HUMANIZED_DEFAULT = true
 
 interface ResultsCardProps {
   autorunSimulation: boolean
+  isRunning: boolean
   toggleAutorun: () => void
   canRun: boolean
   params: AllParams
@@ -42,6 +43,7 @@ interface ResultsCardProps {
 function ResultsCardFunction({
   canRun,
   autorunSimulation,
+  isRunning,
   toggleAutorun,
   params,
   ageDistribution,
@@ -133,11 +135,11 @@ function ResultsCardFunction({
                 className="run-button"
                 type="submit"
                 color="primary"
-                disabled={!canRun}
+                disabled={!canRun || isRunning}
                 data-testid="RunResults"
                 title={t(autorunSimulation ? 'Force a run of the simulation' : 'Run the simulation')}
               >
-                {t(autorunSimulation ? 'Refresh' : 'Run')}
+                {t(isRunning ? 'Running' : autorunSimulation ? 'Refresh' : 'Run')}
               </Button>
               <LinkButton
                 className="new-tab-button"
@@ -201,33 +203,41 @@ function ResultsCardFunction({
             />
           </div>
         </Row>
-        <Row noGutters>
-          <Col>
-            <DeterministicLinePlot
-              data={result}
-              params={params}
-              mitigation={mitigation}
-              logScale={logScale}
-              showHumanized={showHumanized}
-              caseCounts={caseCounts}
-            />
-          </Col>
-        </Row>
-        <Row>
-          <Col>
-            <AgeBarChart
-              showHumanized={showHumanized}
-              data={result}
-              rates={severity}
-              ageDistribution={ageDistribution}
-            />
-          </Col>
-        </Row>
-        <Row>
-          <Col>
-            <OutcomeRatesTable showHumanized={showHumanized} result={result} rates={severity} />
-          </Col>
-        </Row>
+        {isRunning ? (
+          'Running'
+        ) : (
+          <Row noGutters>
+            <Col>
+              <Row noGutters>
+                <Col>
+                  <DeterministicLinePlot
+                    data={result}
+                    params={params}
+                    mitigation={mitigation}
+                    logScale={logScale}
+                    showHumanized={showHumanized}
+                    caseCounts={caseCounts}
+                  />
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <AgeBarChart
+                    showHumanized={showHumanized}
+                    data={result}
+                    rates={severity}
+                    ageDistribution={ageDistribution}
+                  />
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <OutcomeRatesTable showHumanized={showHumanized} result={result} rates={severity} />
+                </Col>
+              </Row>
+            </Col>
+          </Row>
+        )}
       </CardWithoutDropdown>
       {result ? (
         <Button

@@ -35,13 +35,16 @@ interface FormikValidationErrors extends Error {
   errors: FormikErrors<FormikValues>
 }
 
-async function runSimulation(
+function runSimulation(
   params: AllParams,
   scenarioState: State,
   severity: Severity[],
+  setIsRunning: React.Dispatch<React.SetStateAction<boolean>>,
   setResult: React.Dispatch<React.SetStateAction<AlgorithmResult | undefined>>,
   setEmpiricalCases: React.Dispatch<React.SetStateAction<EmpiricalData | undefined>>,
 ) {
+  setIsRunning(true)
+
   const paramsFlat = {
     ...params.population,
     ...params.epidemiological,
@@ -50,10 +53,20 @@ async function runSimulation(
   }
 
   const caseCounts = getCaseCountsData(params.population.cases)
-  const newResult = await run(paramsFlat, severity, scenarioState.ageDistribution)
-  setResult(newResult)
-  caseCounts.sort((a, b) => (a.time > b.time ? 1 : -1))
-  setEmpiricalCases(caseCounts)
+  run(paramsFlat, severity, scenarioState.ageDistribution)
+    .then((newResult) => {
+      setResult(newResult)
+
+      caseCounts.sort((a, b) => (a.time > b.time ? 1 : -1))
+      setEmpiricalCases(caseCounts)
+
+      setIsRunning(false)
+    })
+    .catch((error) => {
+      setIsRunning(false)
+      // TODO: Notify user
+      console.error(error)
+    })
 }
 
 function getColumnSizes(areResultsMaximized: boolean) {
@@ -69,6 +82,7 @@ function Main({ initialState }: InitialStateComponentProps) {
   const [autorunSimulation, setAutorunSimulation] = useState(
     LocalStorage.get<boolean>(LOCAL_STORAGE_KEYS.AUTORUN_SIMULATION) ?? false,
   )
+  const [isRunning, setIsRunning] = useState(false)
   const [areResultsMaximized, setAreResultsMaximized] = useState(false)
   const [scenarioState, scenarioDispatch] = useReducer(scenarioReducer, initialState.scenarioState)
 
@@ -93,7 +107,7 @@ function Main({ initialState }: InitialStateComponentProps) {
 
   const [debouncedRun] = useDebouncedCallback(
     (params: AllParams, scenarioState: State, severity: Severity[]) =>
-      runSimulation(params, scenarioState, severity, setResult, setEmpiricalCases),
+      runSimulation(params, scenarioState, severity, setIsRunning, setResult, setEmpiricalCases),
     500,
   )
 
@@ -138,7 +152,7 @@ function Main({ initialState }: InitialStateComponentProps) {
   }, 1000)
 
   function handleSubmit(params: AllParams, { setSubmitting }: FormikHelpers<AllParams>) {
-    runSimulation(params, scenarioState, severity, setResult, setEmpiricalCases)
+    runSimulation(params, scenarioState, severity, setIsRunning, setResult, setEmpiricalCases)
     setSubmitting(false)
   }
 
@@ -195,6 +209,7 @@ function Main({ initialState }: InitialStateComponentProps) {
                     <ResultsCard
                       canRun={canRun}
                       autorunSimulation={autorunSimulation}
+                      isRunning={isRunning}
                       toggleAutorun={togglePersistAutorun}
                       severity={severity}
                       params={allParams}
